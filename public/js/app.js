@@ -118,7 +118,7 @@
     select.value = state.answers.state || "any";
     select.addEventListener("change", () => {
       state.answers.state = select.value;
-      renderResults();
+      scheduleRender({ resetPaging: true });
       persistAnswers();
     });
   }
@@ -146,7 +146,7 @@
         if (idx === -1) state.answers.categories.push(cat);
         else state.answers.categories.splice(idx, 1);
         chip.classList.toggle("is-selected");
-        renderResults();
+        scheduleRender({ resetPaging: true });
         persistAnswers();
       });
     });
@@ -171,7 +171,7 @@
         if (idx === -1) state.answers.demographics.push(id);
         else state.answers.demographics.splice(idx, 1);
         row.classList.toggle("is-selected");
-        renderResults();
+        scheduleRender({ resetPaging: true });
         persistAnswers();
       });
     });
@@ -198,7 +198,7 @@
   function finishWizard() {
     state.wizardDone = true;
     updateWizardVisibility();
-    renderResults();
+    scheduleRender({ resetPaging: true });
     persistAnswers();
     document.getElementById("resultsAnchor").scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -230,15 +230,43 @@
   const resultsCountEl = document.getElementById("resultsCount");
   const searchInput = document.getElementById("searchInput");
 
+  const PAGE_SIZE = 25;
+  const detailCache = new Map(); // scheme id -> rendered detail-body HTML, built lazily on first open
+  let currentResults = [];
+  let renderQueued = false;
+  let renderTimer = null;
+
   function initSearch() {
     let t;
     searchInput.addEventListener("input", () => {
       clearTimeout(t);
       t = setTimeout(() => {
         state.answers.query = searchInput.value;
-        renderResults();
-      }, 180);
+        scheduleRender({ resetPaging: true });
+      }, 220);
     });
+  }
+
+  /**
+   * Every filter/selection change routes through here instead of calling
+   * renderResults() directly. Filtering + building ~25 card *heads* is
+   * cheap, but we still hop a frame with requestAnimationFrame so a
+   * click handler (e.g. the wizard's "Next" button) gets to finish and
+   * the step-slide transition isn't blocked by list work happening in
+   * the same tick. A short debounce collapses rapid-fire changes (e.g.
+   * checking several demographic boxes quickly) into one render.
+   */
+  function scheduleRender(opts) {
+    if (opts && opts.resetPaging) state.visibleCount = PAGE_SIZE;
+    if (renderQueued) return;
+    renderQueued = true;
+    clearTimeout(renderTimer);
+    renderTimer = setTimeout(() => {
+      requestAnimationFrame(() => {
+        renderQueued = false;
+        renderResults();
+      });
+    }, 30);
   }
 
   function renderResults() {
@@ -256,10 +284,12 @@
       return;
     }
 
-    const results = filterSchemes(state.schemes, state.answers);
-    resultsCountEl.textContent = `${results.length} scheme${results.length === 1 ? "" : "s"}`;
+    if (typeof state.visibleCount !== "number") state.visibleCount = PAGE_SIZE;
 
-    if (results.length === 0) {
+    currentResults = filterSchemes(state.schemes, state.answers);
+    resultsCountEl.textContent = `${currentResults.length} scheme${currentResults.length === 1 ? "" : "s"}`;
+
+    if (currentResults.length === 0) {
       resultsListEl.innerHTML = `<div class="empty-state">
         <h3>No matches yet</h3>
         <p>Try clearing a filter or two \u2014 schemes are added and updated often.</p>
@@ -270,27 +300,72 @@
       return;
     }
 
-    resultsListEl.innerHTML = results.map((s) => renderCard(s)).join("");
-    resultsListEl.querySelectorAll(".results-card__head").forEach((head) => {
-      head.addEventListener("click", () => {
-        const card = head.closest(".results-card");
-        const id = card.dataset.id;
-        state.openCardId = state.openCardId === id ? null : id;
-        resultsListEl.querySelectorAll(".results-card").forEach((c) => {
-          c.classList.toggle("is-open", c.dataset.id === state.openCardId);
-        });
-      });
-    });
-    resultsListEl.querySelectorAll("[data-share-id]").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        shareScheme(btn.dataset.shareId);
-      });
-    });
+    // Only build DOM for the current page of results. Card bodies (the
+    // expensive part — About/benefits/eligibility/application/documents,
+    // each run through listToHtml) are NOT built here at all; they're
+    // filled in lazily the first time a card is opened. This is what
+    // keeps a selection change fast even with a large scheme list.
+    const page = currentResults.slice(0, state.visibleCount);
+    const hasMore = currentResults.length > page.length;
+
+    const html = page.map((s) => renderCardShell(s)).join("") + (hasMore ? renderLoadMore(currentResults.length - page.length) : "");
+    resultsListEl.innerHTML = html;
+
+    // Re-open a card that was already open before this re-render.
+    if (state.openCardId) {
+      const openCard = resultsListEl.querySelector(`.results-card[data-id="${cssEscape(state.openCardId)}"]`);
+      if (openCard) fillCardBody(openCard, true);
+    }
+  }
+
+  // Single delegated listener handles head-click (expand), share button,
+  // and "load more" for the whole list — avoids attaching N listeners
+  // per render, which was another source of jank on large lists.
+  resultsListEl.addEventListener("click", (e) => {
+    const loadMoreBtn = e.target.closest("[data-load-more]");
+    if (loadMoreBtn) {
+      state.visibleCount += PAGE_SIZE;
+      renderResults();
+      return;
+    }
+    const shareBtn = e.target.closest("[data-share-id]");
+    if (shareBtn) {
+      e.stopPropagation();
+      shareScheme(shareBtn.dataset.shareId);
+      return;
+    }
+    const head = e.target.closest(".results-card__head");
+    if (head) {
+      const card = head.closest(".results-card");
+      const id = card.dataset.id;
+      const opening = state.openCardId !== id;
+      // Close whichever card was open before.
+      const prevOpen = resultsListEl.querySelector(".results-card.is-open");
+      if (prevOpen && prevOpen !== card) prevOpen.classList.remove("is-open");
+      state.openCardId = opening ? id : null;
+      card.classList.toggle("is-open", opening);
+      if (opening) fillCardBody(card);
+    }
+  });
+
+  function fillCardBody(cardEl, skipMeasure) {
+    const id = cardEl.dataset.id;
+    const bodyInner = cardEl.querySelector("[data-body-inner]");
+    if (!bodyInner || bodyInner.dataset.filled === "1") return;
+    let html = detailCache.get(id);
+    if (!html) {
+      const scheme = state.schemes.find((s) => s.id === id);
+      if (!scheme) return;
+      html = buildCardDetailHtml(scheme);
+      detailCache.set(id, html);
+    }
+    bodyInner.innerHTML = html;
+    bodyInner.dataset.filled = "1";
   }
 
   function clearAllFilters() {
     state.answers = { state: "any", categories: [], demographics: [], query: "" };
+    state.visibleCount = PAGE_SIZE;
     searchInput.value = "";
     document.getElementById("stateSelect").value = "any";
     renderCategoryStep();
@@ -322,7 +397,15 @@
     return `<ul>${parts.map((p) => `<li>${escapeHtml(p)}</li>`).join("")}</ul>`;
   }
 
-  function renderCard(s) {
+  /**
+   * The "shell" is everything visible in the collapsed card: badges,
+   * title, one-line benefit preview. It's the only thing built for
+   * every row in the current page. The body-inner div is left empty
+   * with a data-filled="0" marker; fillCardBody() populates it the
+   * first time the card is opened, then caches the HTML by scheme id
+   * so re-opening (or a re-render while it's open) is instant.
+   */
+  function renderCardShell(s) {
     const isOpen = state.openCardId === s.id;
     const levelBadge =
       s.level.toLowerCase() === "central"
@@ -333,9 +416,7 @@
       .map((c) => `<span class="badge badge-category">${escapeHtml(c)}</span>`)
       .join("");
     const matchedDemo = s.demoMatches.filter((id) => state.answers.demographics.includes(id));
-    const matchBadge = matchedDemo.length
-      ? `<span class="badge badge-match">Matches you</span>`
-      : "";
+    const matchBadge = matchedDemo.length ? `<span class="badge badge-match">Matches you</span>` : "";
 
     return `<div class="results-card${isOpen ? " is-open" : ""}" data-id="${escapeAttr(s.id)}">
       <button type="button" class="results-card__head">
@@ -347,33 +428,46 @@
         <svg class="results-card__chevron" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
       <div class="results-card__body">
-        <div class="results-card__body-inner">
-          <div class="detail-block">
-            <h4>About</h4>
-            <p>${escapeHtml(s.details)}</p>
-          </div>
-          <div class="detail-block">
-            <h4>What you get</h4>
-            <p>${escapeHtml(s.benefits)}</p>
-          </div>
-          <div class="detail-block">
-            <h4>Who can apply</h4>
-            ${listToHtml(s.eligibility)}
-          </div>
-          <div class="detail-block">
-            <h4>How to apply</h4>
-            ${listToHtml(s.application)}
-          </div>
-          ${s.documents ? `<div class="detail-block"><h4>Documents needed</h4>${listToHtml(s.documents)}</div>` : ""}
-          <div class="results-card__footer">
-            <button type="button" class="icon-btn" data-share-id="${escapeAttr(s.id)}">
-              <svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-3-3-3 3M12 3v12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 12v6a2 2 0 002 2h10a2 2 0 002-2v-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              Share
-            </button>
-          </div>
-        </div>
+        <div class="results-card__body-inner" data-body-inner data-filled="0"></div>
       </div>
     </div>`;
+  }
+
+  function buildCardDetailHtml(s) {
+    return `
+      <div class="detail-block">
+        <h4>About</h4>
+        <p>${escapeHtml(s.details)}</p>
+      </div>
+      <div class="detail-block">
+        <h4>What you get</h4>
+        <p>${escapeHtml(s.benefits)}</p>
+      </div>
+      <div class="detail-block">
+        <h4>Who can apply</h4>
+        ${listToHtml(s.eligibility)}
+      </div>
+      <div class="detail-block">
+        <h4>How to apply</h4>
+        ${listToHtml(s.application)}
+      </div>
+      ${s.documents ? `<div class="detail-block"><h4>Documents needed</h4>${listToHtml(s.documents)}</div>` : ""}
+      <div class="results-card__footer">
+        <button type="button" class="icon-btn" data-share-id="${escapeAttr(s.id)}">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-3-3-3 3M12 3v12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 12v6a2 2 0 002 2h10a2 2 0 002-2v-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Share
+        </button>
+      </div>`;
+  }
+
+  function renderLoadMore(remaining) {
+    return `<button type="button" class="btn btn-outline btn-block" data-load-more style="margin-top:4px;">
+      Show ${Math.min(remaining, PAGE_SIZE)} more
+    </button>`;
+  }
+
+  function cssEscape(str) {
+    return window.CSS && CSS.escape ? CSS.escape(str) : String(str).replace(/["\\]/g, "\\$&");
   }
 
   /* ---------------------------------------------------------------- */
