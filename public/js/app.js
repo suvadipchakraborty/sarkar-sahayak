@@ -87,23 +87,36 @@
   /* ---------------------------------------------------------------- */
 
   const track = document.getElementById("wizardTrack");
+  const viewportEl = document.querySelector(".wizard__viewport");
   const dotsEl = document.getElementById("wizardDots");
   const wizardEl = document.getElementById("wizard");
   const summaryEl = document.getElementById("filterSummary");
 
-  const TOTAL_STEPS = 3;
-
+  /**
+   * Slides the track by whole viewport-widths, in pixels rather than
+   * percent. Percent-based translateX is relative to the *track's own*
+   * box, and because `.wizard__track` never gets an explicit width (its
+   * three flex children just overflow it), that box is only as wide as
+   * one panel — not three — so a percentage split evenly across steps
+   * under-shoots and leaves two panels visible at once. Pixels measured
+   * from the actual viewport avoid that assumption entirely.
+   */
   function updateTrackPosition() {
-    // The track is 3x the viewport width (three flex children each at
-    // 100% basis), so one "page" is 100/TOTAL_STEPS % of the track's
-    // own width — translateX% is relative to the element itself.
-    track.style.transform = `translateX(-${state.step * (100 / TOTAL_STEPS)}%)`;
+    const panelWidth = viewportEl.clientWidth;
+    track.style.transform = `translateX(-${state.step * panelWidth}px)`;
     const dots = dotsEl.querySelectorAll(".wizard__dot");
     dots.forEach((dot, i) => {
       dot.classList.toggle("is-active", i === state.step);
       dot.classList.toggle("is-done", i < state.step);
     });
   }
+
+  // Re-snap on resize/orientation change so the pixel offset stays correct.
+  let resizeRaf;
+  window.addEventListener("resize", () => {
+    cancelAnimationFrame(resizeRaf);
+    resizeRaf = requestAnimationFrame(updateTrackPosition);
+  });
 
   function goToStep(i) {
     state.step = Math.max(0, Math.min(2, i));
