@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en-IN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Sarkar Sahayak — Find the Government Schemes You Qualify For</title>
+<meta name="description" content="Sarkar Sahayak helps Indian citizens discover government schemes, subsidies and pensions they actually qualify for. Answer a few quick questions and see your matches." />
+<meta name="theme-color" content="#182442" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="icon" href="/assets/icons/favicon.png" type="image/png" />
+<link rel="apple-touch-icon" href="/assets/icons/icon-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Sarkar Sahayak" />
+<link rel="canonical" href="https://sarkar-sahayak.suvadipchakraborty.workers.dev/" />
+
+<!-- Open Graph -->
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Sarkar Sahayak — Find the Government Schemes You Qualify For" />
+<meta property="og:description" content="Answer a few quick questions and discover the subsidies, pensions and welfare schemes you actually qualify for, from a nationwide database of government schemes." />
+<meta property="og:url" content="https://sarkar-sahayak.suvadipchakraborty.workers.dev/" />
+<meta property="og:site_name" content="Sarkar Sahayak" />
+<meta property="og:image" content="https://sarkar-sahayak.suvadipchakraborty.workers.dev/assets/og-image.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:locale" content="en_IN" />
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Sarkar Sahayak — Find the Government Schemes You Qualify For" />
+<meta name="twitter:description" content="Answer a few quick questions and discover the government schemes you actually qualify for." />
+<meta name="twitter:image" content="https://sarkar-sahayak.suvadipchakraborty.workers.dev/assets/og-image.png" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+<link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+<div class="app-shell">
+
+  <header class="app-header">
+    <svg class="app-header__mark" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+      <circle cx="20" cy="20" r="16" stroke="#E8912D" stroke-width="2.4"/>
+      <circle cx="20" cy="20" r="3.4" fill="#E8912D"/>
+      <g stroke="#E8912D" stroke-width="1.6">
+        <line x1="20" y1="6" x2="20" y2="11"/><line x1="20" y1="29" x2="20" y2="34"/>
+        <line x1="6" y1="20" x2="11" y2="20"/><line x1="29" y1="20" x2="34" y2="20"/>
+        <line x1="10.3" y1="10.3" x2="13.7" y2="13.7"/><line x1="26.3" y1="26.3" x2="29.7" y2="29.7"/>
+        <line x1="29.7" y1="10.3" x2="26.3" y2="13.7"/><line x1="13.7" y1="26.3" x2="10.3" y2="29.7"/>
+      </g>
+    </svg>
+    <div>
+      <div class="app-header__title">Sarkar Sahayak</div>
+      <div class="app-header__tag">Government schemes, made findable</div>
+    </div>
+  </header>
+
+  <main class="app-main">
+
+    <!-- ============================= HOME ============================= -->
+    <section class="tab-panel is-active" id="tab-home">
+
+      <div class="intro-card">
+        <div class="intro-card__eyebrow">DISCOVER</div>
+        <h1>Find the schemes you actually qualify for</h1>
+        <p>India runs thousands of government schemes, subsidies and pensions — most go unclaimed simply because people never hear about them. Answer three quick questions and we'll surface the ones built for you.</p>
+        <div class="intro-card__steps">
+          <div class="intro-card__step"><b>01</b>Tell us where you live</div>
+          <div class="intro-card__step"><b>02</b>Pick what you're looking for</div>
+          <div class="intro-card__step"><b>03</b>See your matches</div>
+        </div>
+      </div>
+
+      <!-- Wizard -->
+      <div class="wizard" id="wizard">
+        <div class="wizard__progress" id="wizardDots">
+          <div class="wizard__dot"><i></i></div>
+          <div class="wizard__dot"><i></i></div>
+          <div class="wizard__dot"><i></i></div>
+        </div>
+
+        <div class="wizard__viewport">
+          <div class="wizard__track" id="wizardTrack">
+
+            <!-- Step 1: location -->
+            <div class="wizard__step">
+              <div class="wizard__kicker">Step 1 of 3</div>
+              <div class="wizard__question">Where do you live?</div>
+              <p class="wizard__hint">Central schemes apply everywhere — we'll also surface state schemes for wherever you pick.</p>
+              <select class="field-select" id="stateSelect"></select>
+              <div class="wizard__actions">
+                <button type="button" class="btn btn-primary btn-block" id="step1Next">Next</button>
+              </div>
+              <button type="button" class="wizard__skip" id="browseAllLink">Skip the questions — just show me everything</button>
+            </div>
+
+            <!-- Step 2: category -->
+            <div class="wizard__step">
+              <div class="wizard__kicker">Step 2 of 3</div>
+              <div class="wizard__question">What are you looking for?</div>
+              <p class="wizard__hint">Pick as many as apply. You can leave this blank to see every category.</p>
+              <div class="chip-grid" id="categoryChips"></div>
+              <div class="wizard__actions">
+                <button type="button" class="btn btn-outline" id="step2Back">Back</button>
+                <button type="button" class="btn btn-primary btn-block" id="step2Next">Next</button>
+              </div>
+            </div>
+
+            <!-- Step 3: demographics -->
+            <div class="wizard__step">
+              <div class="wizard__kicker">Step 3 of 3</div>
+              <div class="wizard__question">Which of these describe you?</div>
+              <p class="wizard__hint">This helps us rank schemes written for people like you to the top.</p>
+              <div class="check-list" id="demoList"></div>
+              <div class="wizard__actions">
+                <button type="button" class="btn btn-outline" id="step3Back">Back</button>
+                <button type="button" class="btn btn-primary btn-block" id="step3Done">See my schemes</button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Compact summary shown once the wizard is completed -->
+      <div class="filter-pills" id="filterSummary" style="display:none; padding: 14px 20px 0;">
+        <span class="filter-pill" id="summaryPills"></span>
+        <button type="button" class="btn btn-outline btn-sm" id="editFiltersBtn">Edit answers</button>
+      </div>
+
+      <div id="resultsAnchor"></div>
+
+      <div class="results-header">
+        <h2>Matching schemes</h2>
+        <span class="results-count" id="resultsCount"></span>
+      </div>
+      <div class="search-row">
+        <input type="search" class="search-input" id="searchInput" placeholder="Search by scheme name or keyword" />
+      </div>
+
+      <div class="results-list" id="resultsList"></div>
+
+      <p class="disclaimer">Eligibility is inferred from each scheme's published criteria and may not capture every rule. Always confirm details on the official application page before applying.</p>
+
+    </section>
+
+    <!-- ============================= ABOUT ============================= -->
+    <section class="tab-panel" id="tab-about">
+      <div class="about-hero">
+        <h1>Why Sarkar Sahayak exists</h1>
+        <p>Billions of rupees in government benefits go unclaimed every year — not because people aren't eligible, but because they never found out the scheme existed.</p>
+      </div>
+
+      <div class="about-stat-row">
+        <div class="about-stat"><b>1000+</b><span>schemes indexed</span></div>
+        <div class="about-stat"><b>28+8</b><span>states &amp; UTs covered</span></div>
+        <div class="about-stat"><b>3</b><span>questions to your matches</span></div>
+      </div>
+
+      <div class="about-block">
+        <h2>The problem</h2>
+        <p>India's welfare system is vast and genuinely generous — scholarships, pensions, subsidies, insurance, housing and livelihood support exist for almost every walk of life. But that scale is also the problem: schemes are scattered across hundreds of department websites, written in dense official language, and next to impossible to search by "does this apply to me?"</p>
+        <p>The result is one of the country's quieter inequities: the people who most need a scheme are often the least likely to hear about it.</p>
+      </div>
+
+      <div class="about-block">
+        <h2>What Sarkar Sahayak does</h2>
+        <ul class="about-list">
+          <li><span class="num">01</span><span>Pulls together scheme data from central and state government sources into one searchable place.</span></li>
+          <li><span class="num">02</span><span>Turns dense eligibility text into a short set of plain-language questions.</span></li>
+          <li><span class="num">03</span><span>Shows you the benefit, the eligibility criteria, the documents and the exact application steps — no jargon detour.</span></li>
+          <li><span class="num">04</span><span>Lets you share a scheme straight to family or WhatsApp groups, because the best distribution channel for welfare is word of mouth.</span></li>
+        </ul>
+      </div>
+
+      <div class="about-block">
+        <h2>What this isn't</h2>
+        <p>Sarkar Sahayak is a discovery tool, not a government office. It doesn't submit applications on your behalf and eligibility matching is a best-effort read of each scheme's published rules. Always verify details on the official portal linked in each scheme's application steps.</p>
+      </div>
+
+      <div class="about-block">
+        <button type="button" class="btn btn-primary" data-share-app>Share Sarkar Sahayak</button>
+      </div>
+    </section>
+
+  </main>
+
+  <div class="app-footer">
+    <div class="app-footer__credit">Built by <b>Suva</b></div>
+    <a class="icon-btn" data-feedback-link href="mailto:" aria-label="Send feedback">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M4 6h16v12H4z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 7l8 6 8-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Feedback
+    </a>
+  </div>
+
+  <nav class="tab-bar">
+    <button type="button" class="tab-bar__btn is-active" data-tab="home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v9a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1v-9"/></svg>
+      <span>Discover</span>
+    </button>
+    <button type="button" class="tab-bar__btn" data-tab="about">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16.5"/><circle cx="12" cy="7.8" r="0.6" fill="currentColor"/></svg>
+      <span>About</span>
+    </button>
+  </nav>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="/js/data.js"></script>
+<script src="/js/app.js"></script>
+</body>
+</html>

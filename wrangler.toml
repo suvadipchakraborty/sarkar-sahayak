@@ -1,0 +1,15 @@
+name = "sarkar-sahayak"
+main = "src/worker.js"
+compatibility_date = "2025-01-01"
+
+# Static assets (the whole app) are served straight from /public.
+# Cloudflare serves matching files directly; anything that doesn't
+# match a file falls through to src/worker.js, which in turn falls
+# back to index.html so client-side routing / deep links still work.
+[assets]
+directory = "public"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+[observability]
+enabled = true
